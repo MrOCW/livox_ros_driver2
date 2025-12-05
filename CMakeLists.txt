@@ -18,15 +18,6 @@ if(ROS_EDITION STREQUAL "ROS1")
   #---------------------------------------------------------------------------------------
   add_definitions(-DBUILDING_ROS1)
 
-  #---------------------------------------------------------------------------------------
-  # find package and the dependecy
-  #---------------------------------------------------------------------------------------
-  find_package(Boost 1.54 REQUIRED COMPONENTS
-    system
-    thread
-    chrono
-  )
-
   ## Find catkin macros and libraries
   ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
   ## is used, also find other catkin packages
@@ -58,8 +49,7 @@ if(ROS_EDITION STREQUAL "ROS1")
   find_package(PkgConfig)
   pkg_check_modules(APR apr-1)
   if (APR_FOUND)
-    message(${APR_INCLUDE_DIRS})
-    message(${APR_LIBRARIES})
+    message(STATUS "APR found: ${APR_INCLUDE_DIRS}, ${APR_LIBRARIES}")
   endif (APR_FOUND)
 
   ###################################
@@ -158,7 +148,6 @@ if(ROS_EDITION STREQUAL "ROS1")
   #---------------------------------------------------------------------------------------
   target_link_libraries(${PROJECT_NAME}_node
     ${LIVOX_LIDAR_SDK_LIBRARY}
-    ${Boost_LIBRARY}
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
     ${APR_LIBRARIES}
@@ -189,6 +178,10 @@ else(ROS_EDITION STREQUAL "ROS2")
   # Copyright(c) 2020 livoxtech limited.
 
   cmake_minimum_required(VERSION 3.14)
+  if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+  endif()
+
   project(livox_ros_driver2)
 
   # Default to C99
@@ -282,7 +275,11 @@ else(ROS_EDITION STREQUAL "ROS2")
   target_include_directories(${PROJECT_NAME} PRIVATE ${livox_sdk_INCLUDE_DIRS})
 
   # get include directories of custom msg headers
-  if(HUMBLE_ROS STREQUAL "humble")
+  if(DISTRO_ROS STREQUAL "humble")
+    rosidl_get_typesupport_target(cpp_typesupport_target
+    ${LIVOX_INTERFACES} "rosidl_typesupport_cpp")
+    target_link_libraries(${PROJECT_NAME} "${cpp_typesupport_target}")
+  elseif(DISTRO_ROS STREQUAL "jazzy")
     rosidl_get_typesupport_target(cpp_typesupport_target
     ${LIVOX_INTERFACES} "rosidl_typesupport_cpp")
     target_link_libraries(${PROJECT_NAME} "${cpp_typesupport_target}")
@@ -307,7 +304,6 @@ else(ROS_EDITION STREQUAL "ROS2")
     ${LIVOX_LIDAR_SDK_LIBRARY}
     ${LIVOX_INTERFACE_TARGET}   # for custom msgs
     ${PPT_LIBRARY}
-    ${Boost_LIBRARY}
     ${PCL_LIBRARIES}
     ${APR_LIBRARIES}
   )
