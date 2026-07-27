@@ -3,7 +3,7 @@
 <package format="3">
   <name>livox_ros_driver2</name>
   <version>1.0.0</version>
-  <description>The ROS device driver for Livox 3D LiDARs, for ROS2</description>
+  <description>The ROS 2 Jazzy/Lyrical device driver for Livox 3D LiDARs.</description>
   <maintainer email="dev@livoxtech.com">feng</maintainer>
   <license>MIT</license>
 
