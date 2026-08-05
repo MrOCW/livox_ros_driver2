@@ -30,7 +30,9 @@
 #include <iostream>
 #include <iomanip>
 #include <math.h>
+#include <memory>
 #include <stdint.h>
+#include <utility>
 
 #include "include/ros_headers.h"
 
@@ -207,10 +209,16 @@ void Lddc::PublishPointcloud2(LidarDataQueue *queue, uint8_t index) {
       continue;
     }
 
-    PointCloud2 cloud;
     uint64_t timestamp = 0;
+#ifdef BUILDING_ROS1
+    PointCloud2 cloud;
     InitPointcloud2Msg(pkg, cloud, timestamp);
     PublishPointcloud2Data(index, timestamp, cloud);
+#elif defined BUILDING_ROS2
+    auto cloud = std::make_unique<PointCloud2>();
+    InitPointcloud2Msg(pkg, *cloud, timestamp);
+    PublishPointcloud2Data(index, timestamp, std::move(cloud));
+#endif
   }
 }
 
@@ -332,24 +340,32 @@ void Lddc::InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint
   memcpy(cloud.data.data(), points.data(), pkg.points_num * sizeof(LivoxPointXyzrtlt));
 }
 
-void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp, const PointCloud2& cloud) {
 #ifdef BUILDING_ROS1
+void Lddc::PublishPointcloud2Data(
+    const uint8_t index, const uint64_t timestamp, const PointCloud2& cloud) {
   PublisherPtr publisher_ptr = Lddc::GetCurrentPublisher(index);
-#elif defined BUILDING_ROS2
-  Publisher<PointCloud2>::SharedPtr publisher_ptr =
-    std::dynamic_pointer_cast<Publisher<PointCloud2>>(GetCurrentPublisher(index));
-#endif
 
   if (kOutputToRos == output_type_) {
     publisher_ptr->publish(cloud);
   } else {
-#ifdef BUILDING_ROS1
     if (bag_ && enable_lidar_bag_) {
       bag_->write(publisher_ptr->getTopic(), ros::Time(timestamp / 1000000000.0), cloud);
     }
-#endif
   }
 }
+#elif defined BUILDING_ROS2
+void Lddc::PublishPointcloud2Data(
+    const uint8_t index, const uint64_t timestamp,
+    std::unique_ptr<PointCloud2> cloud) {
+  (void)timestamp;
+  Publisher<PointCloud2>::SharedPtr publisher_ptr =
+    std::dynamic_pointer_cast<Publisher<PointCloud2>>(GetCurrentPublisher(index));
+
+  if (kOutputToRos == output_type_) {
+    publisher_ptr->publish(std::move(cloud));
+  }
+}
+#endif
 
 void Lddc::InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t index) {
   livox_msg.header.frame_id.assign(frame_id_);

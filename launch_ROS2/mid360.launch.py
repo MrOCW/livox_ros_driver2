@@ -57,6 +57,29 @@ def generate_launch_description():
                     "use_intra_process_comms": LaunchConfiguration("use_intra_process"),
                 }],
             ),
+            ComposableNode(
+                package="point_cloud_transport",
+                plugin="point_cloud_transport::Republisher",
+                name="livox_pointcloud_compressor",
+                remappings=[
+                    ("in", "/livox/lidar"),
+                    ("/out/draco", "/livox/lidar_viz/draco"),
+                ],
+                parameters=[{
+                    "in_transport": "raw",
+                    "out.enable_pub_plugins": ["point_cloud_transport/draco"],
+                    # Livox also carries uint8 tag/line and a float64 timestamp.
+                    # Forced KD-tree quantization cannot encode that mixed layout.
+                    "livox.lidar_viz.draco.encode_method": 0,
+                    "livox.lidar_viz.draco.force_quantization": False,
+                    "livox.lidar_viz.draco.encode_speed": 5,
+                    "livox.lidar_viz.draco.decode_speed": 5,
+                    "livox.lidar_viz.draco.deduplicate": True,
+                }],
+                extra_arguments=[{
+                    "use_intra_process_comms": LaunchConfiguration("use_intra_process"),
+                }],
+            ),
         ],
     )
 
