@@ -22,7 +22,7 @@
 // SOFTWARE.
 //
 
-// Denoting headers specifically used for building ROS1 Driver.
+// Headers used by the ROS 2 driver.
 
 #ifndef ROS2_HEADERS_H_
 #define ROS2_HEADERS_H_
@@ -31,7 +31,6 @@
 #include <future>
 
 #include <rclcpp/rclcpp.hpp>
-#include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include "livox_ros_driver2/msg/custom_point.hpp"

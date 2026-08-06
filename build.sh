@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly VERSION_ROS2="ROS2"
 readonly VERSION_JAZZY="jazzy"
 readonly VERSION_LYRICAL="lyrical"
 
@@ -27,7 +26,6 @@ case "${requested_distro}" in
         ;;
 esac
 
-echo "ROS version is: ${VERSION_ROS2}"
 echo "ROS distro is: ${ROS_DISTRO}"
 
 workspace_dir="$(cd ../../.. && pwd)"
@@ -48,7 +46,6 @@ fi
 
 cd "${workspace_dir}"
 colcon build --symlink-install --cmake-args \
-    -DROS_EDITION=${VERSION_ROS2} \
     -DDISTRO_ROS=${ROS_DISTRO} \
     -DCMAKE_BUILD_TYPE=Release \
     -Wno-dev

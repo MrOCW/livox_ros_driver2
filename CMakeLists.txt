@@ -1,13 +1,6 @@
 # This fork supports only ROS 2 Jazzy and ROS 2 Lyrical.
 cmake_minimum_required(VERSION 3.14)
 
-if(DEFINED ROS_EDITION)
-  if(NOT "${ROS_EDITION}" STREQUAL "" AND NOT "${ROS_EDITION}" STREQUAL "ROS2")
-    message(FATAL_ERROR "livox_ros_driver2 supports only ROS2 Jazzy and ROS2 Lyrical.")
-  endif()
-endif()
-set(ROS_EDITION "ROS2" CACHE STRING "ROS edition" FORCE)
-
 if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
@@ -43,11 +36,8 @@ if(NOT DISTRO_ROS MATCHES "^(jazzy|lyrical)$")
 endif()
 message(STATUS "Building for ROS 2 ${DISTRO_ROS}")
 
-add_definitions(-DBUILDING_ROS2)
-
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
-find_package(PCL REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -72,9 +62,6 @@ find_path(LIVOX_LIDAR_SDK_INCLUDE_DIR
   NAMES "livox_lidar_api.h" "livox_lidar_def.h"
   REQUIRED
 )
-
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
   src/livox_ros_driver2.cpp
@@ -101,7 +88,6 @@ rosidl_get_typesupport_target(cpp_typesupport_target
   ${LIVOX_INTERFACES} "rosidl_typesupport_cpp")
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${PCL_INCLUDE_DIRS}
   ${APR_INCLUDE_DIRS}
   ${LIVOX_LIDAR_SDK_INCLUDE_DIR}
   3rdparty
@@ -112,7 +98,6 @@ target_link_libraries(${PROJECT_NAME}
   ${LIVOX_LIDAR_SDK_LIBRARY}
   "${cpp_typesupport_target}"
   ${PPT_LIBRARY}
-  ${PCL_LIBRARIES}
   ${APR_LIBRARIES}
 )
 
