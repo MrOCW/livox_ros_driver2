@@ -73,13 +73,37 @@ void Lds::ResetLds(uint8_t data_src) {
   }
 }
 
+void Lds::SetQueueCapacities(uint32_t lidar_frame_capacity, size_t imu_capacity) {
+  lidar_frame_queue_capacity_ = lidar_frame_capacity;
+  imu_queue_capacity_ = imu_capacity;
+  for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
+    lidars_[i].imu_data.SetCapacity(imu_queue_capacity_);
+  }
+}
+
+uint64_t Lds::GetDroppedImuCount() const {
+  uint64_t dropped = 0;
+  for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
+    dropped += lidars_[i].imu_data.DroppedCount();
+  }
+  return dropped;
+}
+
+size_t Lds::GetImuQueueHighWaterMark() const {
+  size_t high_water_mark = 0;
+  for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
+    high_water_mark = std::max(high_water_mark, lidars_[i].imu_data.HighWaterMark());
+  }
+  return high_water_mark;
+}
+
 void Lds::RequestExit() {
   request_exit_ = true;
 }
 
 bool Lds::IsAllQueueEmpty() {
   for (int i = 0; i < lidar_count_; i++) {
-    if (!QueueIsEmpty(&lidars_[i].data)) {
+    if (!IsLidarQueueEmpty(i)) {
       return false;
     }
   }
@@ -88,6 +112,7 @@ bool Lds::IsAllQueueEmpty() {
 
 bool Lds::IsAllQueueReadStop() {
   for (int i = 0; i < lidar_count_; i++) {
+    std::lock_guard<std::mutex> lock(lidar_queue_mutexes_[i]);
     uint32_t data_size = QueueUsedSize(&lidars_[i].data);
     if (data_size) {
       return false;
@@ -174,25 +199,37 @@ void Lds::PushLidarData(PointPacket* lidar_data, const uint8_t index, const uint
 
   LidarDevice *p_lidar = &lidars_[index];
   LidarDataQueue *queue = &p_lidar->data;
+  std::lock_guard<std::mutex> lock(lidar_queue_mutexes_[index]);
 
   if (nullptr == queue->storage_packet) {
-    uint32_t queue_size = CalculatePacketQueueSize(publish_freq_);
+    uint32_t queue_size = lidar_frame_queue_capacity_;
     InitQueue(queue, queue_size);
     printf("Lidar[%u] storage queue size: %u\n", index, queue_size);
   }
 
-  if (!QueueIsFull(queue)) {
-    QueuePushAny(queue, (uint8_t *)lidar_data, base_time);
-    if (!QueueIsEmpty(queue)) {
-      if (pcd_semaphore_.GetCount() <= 0) {
-        pcd_semaphore_.Signal();
-      }
-    }
-  } else {
+  if (QueueIsFull(queue)) {
+    QueuePopUpdate(queue);
+    dropped_lidar_frames_.fetch_add(1);
+  }
+
+  QueuePushAny(queue, (uint8_t *)lidar_data, base_time);
+  lidar_frame_queue_high_water_mark_.store(std::max(
+      lidar_frame_queue_high_water_mark_.load(), static_cast<size_t>(QueueUsedSize(queue))));
+  if (!QueueIsEmpty(queue)) {
     if (pcd_semaphore_.GetCount() <= 0) {
-        pcd_semaphore_.Signal();
+      pcd_semaphore_.Signal();
     }
   }
+}
+
+bool Lds::PopLidarData(uint8_t index, StoragePacket * storage_packet) {
+  std::lock_guard<std::mutex> lock(lidar_queue_mutexes_[index]);
+  return QueuePop(&lidars_[index].data, storage_packet);
+}
+
+bool Lds::IsLidarQueueEmpty(uint8_t index) {
+  std::lock_guard<std::mutex> lock(lidar_queue_mutexes_[index]);
+  return QueueIsEmpty(&lidars_[index].data);
 }
 
 void Lds::PrepareExit(void) {}

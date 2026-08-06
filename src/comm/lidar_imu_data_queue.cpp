@@ -26,6 +26,15 @@
 
 namespace livox_ros {
 
+void LidarImuDataQueue::SetCapacity(size_t capacity) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  capacity_ = capacity;
+  while (imu_data_queue_.size() > capacity_) {
+    imu_data_queue_.pop_front();
+    dropped_count_.fetch_add(1);
+  }
+}
+
 void LidarImuDataQueue::Push(ImuData* imu_data) {
   ImuData data;
   data.lidar_type = imu_data->lidar_type;
@@ -41,7 +50,12 @@ void LidarImuDataQueue::Push(ImuData* imu_data) {
   data.acc_z = imu_data->acc_z;
 
   std::lock_guard<std::mutex> lock(mutex_);
+  if (imu_data_queue_.size() >= capacity_) {
+    imu_data_queue_.pop_front();
+    dropped_count_.fetch_add(1);
+  }
   imu_data_queue_.push_back(std::move(data));
+  high_water_mark_.store(std::max(high_water_mark_.load(), imu_data_queue_.size()));
 }
 
 bool LidarImuDataQueue::Pop(ImuData& imu_data) {
@@ -60,11 +74,16 @@ bool LidarImuDataQueue::Empty() {
 }
 
 void LidarImuDataQueue::Clear() {
-  std::list<ImuData> tmp_imu_data_queue;
+  std::deque<ImuData> tmp_imu_data_queue;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     imu_data_queue_.swap(tmp_imu_data_queue);
   }
+}
+
+size_t LidarImuDataQueue::Size() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return imu_data_queue_.size();
 }
 
 } // namespace livox_ros

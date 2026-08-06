@@ -121,6 +121,14 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
+ament_auto_add_library(livox_pointcloud_throttle_component SHARED
+  src/pointcloud_throttle_node.cpp
+)
+target_include_directories(livox_pointcloud_throttle_component PUBLIC src)
+rclcpp_components_register_nodes(livox_pointcloud_throttle_component
+  "livox_ros::PointCloudThrottleNode"
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()

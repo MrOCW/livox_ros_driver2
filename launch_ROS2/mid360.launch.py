@@ -23,6 +23,15 @@ def generate_launch_description():
         DeclareLaunchArgument("lvx_file_path", default_value=""),
         DeclareLaunchArgument("cmdline_input_bd_code", default_value="livox0000000001"),
         DeclareLaunchArgument("user_config_path", default_value=default_user_config),
+        DeclareLaunchArgument("lidar_qos_reliability", default_value="best_effort"),
+        DeclareLaunchArgument("lidar_qos_depth", default_value="2"),
+        DeclareLaunchArgument("imu_qos_reliability", default_value="best_effort"),
+        DeclareLaunchArgument("imu_qos_depth", default_value="50"),
+        DeclareLaunchArgument("raw_packet_queue_capacity", default_value="512"),
+        DeclareLaunchArgument("imu_packet_queue_capacity", default_value="50"),
+        DeclareLaunchArgument("lidar_frame_queue_capacity", default_value="2"),
+        DeclareLaunchArgument("ptp_max_offset_seconds", default_value="1.0"),
+        DeclareLaunchArgument("visualization_publish_frequency", default_value="4.0"),
 
         DeclareLaunchArgument("rviz", default_value="true"),
         DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
@@ -52,6 +61,29 @@ def generate_launch_description():
                     "lvx_file_path": LaunchConfiguration("lvx_file_path"),
                     "user_config_path": LaunchConfiguration("user_config_path"),
                     "cmdline_input_bd_code": LaunchConfiguration("cmdline_input_bd_code"),
+                    "lidar_qos_reliability": LaunchConfiguration("lidar_qos_reliability"),
+                    "lidar_qos_depth": LaunchConfiguration("lidar_qos_depth"),
+                    "imu_qos_reliability": LaunchConfiguration("imu_qos_reliability"),
+                    "imu_qos_depth": LaunchConfiguration("imu_qos_depth"),
+                    "raw_packet_queue_capacity": LaunchConfiguration("raw_packet_queue_capacity"),
+                    "imu_packet_queue_capacity": LaunchConfiguration("imu_packet_queue_capacity"),
+                    "lidar_frame_queue_capacity": LaunchConfiguration("lidar_frame_queue_capacity"),
+                    "ptp_max_offset_seconds": LaunchConfiguration("ptp_max_offset_seconds"),
+                }],
+                extra_arguments=[{
+                    "use_intra_process_comms": LaunchConfiguration("use_intra_process"),
+                }],
+            ),
+            ComposableNode(
+                package="livox_ros_driver2",
+                plugin="livox_ros::PointCloudThrottleNode",
+                name="livox_pointcloud_viz_throttle",
+                remappings=[
+                    ("input", "/livox/lidar"),
+                    ("output", "/livox/lidar_viz_input"),
+                ],
+                parameters=[{
+                    "max_rate_hz": LaunchConfiguration("visualization_publish_frequency"),
                 }],
                 extra_arguments=[{
                     "use_intra_process_comms": LaunchConfiguration("use_intra_process"),
@@ -62,12 +94,18 @@ def generate_launch_description():
                 plugin="point_cloud_transport::Republisher",
                 name="livox_pointcloud_compressor",
                 remappings=[
-                    ("in", "/livox/lidar"),
+                    ("in", "/livox/lidar_viz_input"),
                     ("/out/draco", "/livox/lidar_viz/draco"),
                 ],
                 parameters=[{
                     "in_transport": "raw",
                     "out.enable_pub_plugins": ["point_cloud_transport/draco"],
+                    "qos_overrides./livox/lidar_viz_input.subscription.history": "keep_last",
+                    "qos_overrides./livox/lidar_viz_input.subscription.depth": 1,
+                    "qos_overrides./livox/lidar_viz_input.subscription.reliability": "best_effort",
+                    "qos_overrides./livox/lidar_viz/draco.publisher.history": "keep_last",
+                    "qos_overrides./livox/lidar_viz/draco.publisher.depth": 1,
+                    "qos_overrides./livox/lidar_viz/draco.publisher.reliability": "best_effort",
                     # Livox also carries uint8 tag/line and a float64 timestamp.
                     # Forced KD-tree quantization cannot encode that mixed layout.
                     "livox.lidar_viz.draco.encode_method": 0,

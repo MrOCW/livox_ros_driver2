@@ -27,7 +27,9 @@
 #ifndef LIVOX_ROS_DRIVER_LDS_H_
 #define LIVOX_ROS_DRIVER_LDS_H_
 
+#include <atomic>
 #include <map>
+#include <mutex>
 
 #include "comm/semaphore.h"
 #include "comm/comm.h"
@@ -48,6 +50,16 @@ class Lds {
 
   int8_t GetHandle(const uint8_t lidar_type, const PointPacket* lidar_point);
   void PushLidarData(PointPacket* lidar_data, const uint8_t index, const uint64_t base_time);
+  bool PopLidarData(uint8_t index, StoragePacket * storage_packet);
+  bool IsLidarQueueEmpty(uint8_t index);
+  void SetQueueCapacities(uint32_t lidar_frame_capacity, size_t imu_capacity);
+
+  uint64_t GetDroppedLidarFrameCount() const { return dropped_lidar_frames_.load(); }
+  uint64_t GetDroppedImuCount() const;
+  size_t GetLidarFrameQueueHighWaterMark() const {
+    return lidar_frame_queue_high_water_mark_.load();
+  }
+  size_t GetImuQueueHighWaterMark() const;
 
   static void ResetLidar(LidarDevice *lidar, uint8_t data_src);
   static void SetLidarDataSrc(LidarDevice *lidar, uint8_t data_src);
@@ -75,6 +87,11 @@ class Lds {
   double publish_freq_;
   uint8_t data_src_;
  private:
+  uint32_t lidar_frame_queue_capacity_ = 2;
+  size_t imu_queue_capacity_ = 50;
+  std::atomic<uint64_t> dropped_lidar_frames_{0};
+  std::atomic<size_t> lidar_frame_queue_high_water_mark_{0};
+  std::mutex lidar_queue_mutexes_[kMaxSourceLidar];
   volatile bool request_exit_;
 };
 

@@ -206,8 +206,8 @@ typedef struct {
   StoragePacket *storage_packet;
   volatile uint32_t rd_idx;
   volatile uint32_t wr_idx;
-  uint32_t mask;
-  uint32_t size; /**< must be power of 2. */
+  uint32_t mask; /**< Retained for ABI compatibility; indexing uses size. */
+  uint32_t size;
 } LidarDataQueue;
 
 /*****************************/
@@ -281,7 +281,7 @@ typedef struct {
   volatile LidarConnectState connect_state;
   // DeviceInfo info;
 
-  LidarDataQueue data;
+  LidarDataQueue data{};
   LidarImuDataQueue imu_data;
 
   uint32_t firmware_ver; /**< Firmware version of lidar  */

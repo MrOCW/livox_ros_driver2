@@ -76,7 +76,7 @@ class Lddc final {
       std::string &frame_id, bool lidar_bag, bool imu_bag);
 #elif defined BUILDING_ROS2
   Lddc(int format, int multi_topic, int data_src, int output_type, double frq,
-      std::string &frame_id);
+      std::string &frame_id, const rclcpp::QoS & lidar_qos, const rclcpp::QoS & imu_qos);
 #endif
   ~Lddc();
 
@@ -100,9 +100,9 @@ class Lddc final {
   void PollingLidarPointCloudData(uint8_t index, LidarDevice *lidar);
   void PollingLidarImuData(uint8_t index, LidarDevice *lidar);
 
-  void PublishPointcloud2(LidarDataQueue *queue, uint8_t index);
-  void PublishCustomPointcloud(LidarDataQueue *queue, uint8_t index);
-  void PublishPclMsg(LidarDataQueue *queue, uint8_t index);
+  void PublishPointcloud2(uint8_t index);
+  void PublishCustomPointcloud(uint8_t index);
+  void PublishPclMsg(uint8_t index);
 
   void PublishImuData(LidarImuDataQueue& imu_data_queue, const uint8_t index);
 
@@ -130,7 +130,7 @@ class Lddc final {
       uint32_t offset_time, uint32_t point_interval, uint32_t echo_num);
 
 #ifdef BUILDING_ROS2
-  PublisherPtr CreatePublisher(uint8_t msg_type, std::string &topic_name, uint32_t queue_size);
+  PublisherPtr CreatePublisher(uint8_t msg_type, std::string &topic_name);
 #endif
 
   PublisherPtr GetCurrentPublisher(uint8_t index);
@@ -154,6 +154,8 @@ class Lddc final {
   PublisherPtr global_imu_pub_;
   rosbag::Bag *bag_;
 #elif defined BUILDING_ROS2
+  rclcpp::QoS lidar_qos_;
+  rclcpp::QoS imu_qos_;
   PublisherPtr private_pub_[kMaxSourceLidar];
   PublisherPtr global_pub_;
   PublisherPtr private_imu_pub_[kMaxSourceLidar];

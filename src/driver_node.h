@@ -64,12 +64,19 @@ class DriverNode final : public rclcpp::Node {
  private:
   void PointCloudDataPollThread();
   void ImuDataPollThread();
+  void LogQueueDrops();
 
   std::unique_ptr<Lddc> lddc_ptr_;
   std::shared_ptr<std::thread> pointclouddata_poll_thread_;
   std::shared_ptr<std::thread> imudata_poll_thread_;
   std::shared_future<void> future_;
   std::promise<void> exit_signal_;
+  rclcpp::TimerBase::SharedPtr queue_stats_timer_;
+  uint64_t last_raw_packet_drop_count_ = 0;
+  uint64_t last_lidar_frame_drop_count_ = 0;
+  uint64_t last_imu_drop_count_ = 0;
+  uint64_t last_invalid_timestamp_drop_count_ = 0;
+  uint64_t last_timestamp_recovery_count_ = 0;
 };
 #endif
 

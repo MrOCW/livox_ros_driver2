@@ -26,6 +26,7 @@
 #define LIVOX_DRIVER_PUB_HANDLER_H_
 
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <condition_variable> // std::condition_variable
 #include <deque>
@@ -34,10 +35,12 @@
 #include <memory>
 #include <mutex>              // std::mutex
 #include <thread>
+#include <utility>
 
 #include "livox_lidar_def.h"
 #include "livox_lidar_api.h"
 #include "comm/comm.h"
+#include "timestamp_guard.h"
 
 namespace livox_ros {
 
@@ -49,6 +52,7 @@ class LidarPubHandler {
   void PointCloudProcess(RawPacket& pkt);
   void SetLidarsExtParam(LidarExtParameter param);
   void GetLidarPointClouds(std::vector<PointXyzlt>& points_clouds);
+  void ResetPointClouds();
 
   uint64_t GetRecentTimeStamp();
   uint32_t GetLidarPointCloudsSize();
@@ -78,7 +82,12 @@ class PubHandler {
   using ImuDataCallback = std::function<void(ImuData*, void*)>;
   using TimePoint = std::chrono::high_resolution_clock::time_point;
 
-  PubHandler() {}
+  PubHandler()
+      : system_time_provider_([]() {
+          return static_cast<uint64_t>(
+              std::chrono::duration_cast<std::chrono::nanoseconds>(
+                  std::chrono::system_clock::now().time_since_epoch()).count());
+        }) {}
 
   ~ PubHandler() { Uninit(); }
 
@@ -86,10 +95,23 @@ class PubHandler {
   void RequestExit();
   void Init();
   void SetPointCloudConfig(const double publish_freq);
+  void SetRawPacketQueueCapacity(size_t capacity);
+  void SetPtpTimestampMaxOffset(double max_offset_seconds);
+  void SetSystemTimeProvider(std::function<uint64_t()> provider);
+  void EnqueueRawPacket(RawPacket packet);
   void SetPointCloudsCallback(PointCloudsCallback cb, void* client_data);
   void AddLidarsExtParam(LidarExtParameter& extrinsic_params);
   void ClearAllLidarsExtrinsicParams();
   void SetImuDataCallback(ImuDataCallback cb, void* client_data);
+  uint64_t GetDroppedRawPacketCount() const { return dropped_raw_packets_.load(); }
+  uint64_t GetDroppedInvalidTimestampCount() const {
+    return dropped_invalid_timestamp_packets_.load();
+  }
+  uint64_t GetTimestampRecoveryCount() const { return timestamp_recoveries_.load(); }
+  uint64_t GetLastPtpTimestampOffsetNs() const { return last_ptp_offset_ns_.load(); }
+  TimestampState GetTimestampState() const { return timestamp_guard_.state(); }
+  size_t GetRawPacketQueueHighWaterMark() const { return raw_queue_high_water_mark_.load(); }
+  size_t GetRawPacketQueueSize();
 
  private:
   //thread to process raw data
@@ -106,7 +128,9 @@ class PubHandler {
                                              LivoxLidarEthernetPacket *data, void *client_data);
   
   static bool GetLidarId(LidarProtoType lidar_type, uint32_t handle, uint32_t& id);
-  static uint64_t GetEthPacketTimestamp(uint8_t timestamp_type, uint8_t* time_stamp, uint8_t size);
+  static uint64_t DecodeEthPacketTimestamp(uint8_t* time_stamp, uint8_t size);
+  TimestampDecision EvaluatePacketTimestamp(uint8_t timestamp_type, uint64_t sensor_timestamp);
+  void ResetPendingPointCloudData();
 
   PointCloudsCallback points_callback_;
   void* pub_client_data_ = nullptr;
@@ -117,6 +141,15 @@ class PubHandler {
   PointFrame frame_;
 
   std::deque<RawPacket> raw_packet_queue_;
+  size_t raw_packet_queue_capacity_ = 512;
+  bool reset_pointclouds_pending_ = false;
+  std::atomic<uint64_t> dropped_raw_packets_{0};
+  std::atomic<size_t> raw_queue_high_water_mark_{0};
+  std::atomic<uint64_t> dropped_invalid_timestamp_packets_{0};
+  std::atomic<uint64_t> timestamp_recoveries_{0};
+  std::atomic<uint64_t> last_ptp_offset_ns_{0};
+  TimestampGuard timestamp_guard_;
+  std::function<uint64_t()> system_time_provider_;
 
   //pub config
   uint64_t publish_interval_ = 100000000; //100 ms

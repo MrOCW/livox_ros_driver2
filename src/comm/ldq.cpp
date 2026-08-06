@@ -36,9 +36,8 @@ bool InitQueue(LidarDataQueue *queue, uint32_t queue_size) {
     return false;
   }
 
-  if (!IsPowerOf2(queue_size)) {
-    queue_size = RoundupPowerOf2(queue_size);
-    printf("Init queue, real query size:%u.\n", queue_size);
+  if (queue_size == 0) {
+    return false;
   }
 
   if (queue->storage_packet) {
@@ -55,7 +54,7 @@ bool InitQueue(LidarDataQueue *queue, uint32_t queue_size) {
   queue->rd_idx = 0;
   queue->wr_idx = 0;
   queue->size = queue_size;
-  queue->mask = queue_size - 1;
+  queue->mask = 0;
 
   return true;
 }
@@ -94,7 +93,7 @@ bool QueuePrePop(LidarDataQueue *queue, StoragePacket *storage_packet) {
     return false;
   }
 
-  uint32_t rd_idx = queue->rd_idx & queue->mask;
+  uint32_t rd_idx = queue->rd_idx % queue->size;
 
   storage_packet->base_time = queue->storage_packet[rd_idx].base_time;
   storage_packet->points_num = queue->storage_packet[rd_idx].points_num;
@@ -126,7 +125,7 @@ uint32_t QueueUnusedSize(LidarDataQueue *queue) {
 }
 
 bool QueueIsFull(LidarDataQueue *queue) {
-  return ((queue->wr_idx - queue->rd_idx) > queue->mask);
+  return ((queue->wr_idx - queue->rd_idx) >= queue->size);
 }
 
 bool QueueIsEmpty(LidarDataQueue *queue) {
@@ -134,7 +133,7 @@ bool QueueIsEmpty(LidarDataQueue *queue) {
 }
 
 uint32_t QueuePushAny(LidarDataQueue *queue, uint8_t *data, const uint64_t base_time) {
-  uint32_t wr_idx = queue->wr_idx & queue->mask;
+  uint32_t wr_idx = queue->wr_idx % queue->size;
   PointPacket* lidar_point_data = reinterpret_cast<PointPacket*>(data);
   queue->storage_packet[wr_idx].base_time = base_time;
   queue->storage_packet[wr_idx].points_num = lidar_point_data->points_num;

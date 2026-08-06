@@ -25,7 +25,9 @@
 #ifndef LIVOX_ROS_DRIVER_LIDAR_IMU_DATA_QUEUE_H_
 #define LIVOX_ROS_DRIVER_LIDAR_IMU_DATA_QUEUE_H_
 
-#include <list>
+#include <algorithm>
+#include <atomic>
+#include <deque>
 #include <mutex>
 #include <cstdint>
 
@@ -61,17 +63,25 @@ typedef struct {
 
 class LidarImuDataQueue {
  public:
+  explicit LidarImuDataQueue(size_t capacity = 50) : capacity_(capacity) {}
+
+  void SetCapacity(size_t capacity);
   void Push(ImuData* imu_data);
   bool Pop(ImuData& imu_data);
   bool Empty();
   void Clear();
+  size_t Size();
+  uint64_t DroppedCount() const { return dropped_count_.load(); }
+  size_t HighWaterMark() const { return high_water_mark_.load(); }
 
  private:
   std::mutex mutex_;
-  std::list<ImuData> imu_data_queue_;
+  std::deque<ImuData> imu_data_queue_;
+  size_t capacity_;
+  std::atomic<uint64_t> dropped_count_{0};
+  std::atomic<size_t> high_water_mark_{0};
 };
 
 } // namespace
 
 #endif // LIVOX_ROS_DRIVER_LIDAR_IMU_DATA_QUEUE_H_
-

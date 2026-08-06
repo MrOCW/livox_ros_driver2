@@ -94,13 +94,22 @@ Launch files are in the "launch_ROS2" directory. Different launch files have dif
 
 ### 3.2 Livox ros driver 2 internal main parameter configuration instructions
 
-All internal parameters of Livox_ros_driver2 are in the launch file. Below are detailed descriptions of the three commonly used parameters :
+All internal parameters of Livox_ros_driver2 are in the launch file. The MID360 launch also exposes bounded freshness and visualization controls:
 
 | Parameter    | Detailed description                                         | Default |
 | ------------ | ------------------------------------------------------------ | ------- |
 | publish_freq | Set the frequency of point cloud publish <br>Floating-point data type, recommended values 5.0, 10.0, 20.0, 50.0, etc. The maximum publish frequency is 100.0 Hz.| 10.0    |
 | multi_topic  | If the LiDAR device has an independent topic to publish pointcloud data<br>0 -- All LiDAR devices use the same topic to publish pointcloud data<br>1 -- Each LiDAR device has its own topic to publish point cloud data | 0       |
 | xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTLT) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library (just for ROS) | 0       |
+| lidar_qos_reliability | ROS 2 LiDAR publisher reliability: `best_effort` or `reliable`. | best_effort |
+| lidar_qos_depth | LiDAR publisher keep-last depth. | 2 |
+| imu_qos_reliability | ROS 2 IMU publisher reliability: `best_effort` or `reliable`. | best_effort |
+| imu_qos_depth | IMU publisher keep-last depth. | 50 |
+| raw_packet_queue_capacity | Maximum pending SDK LiDAR packets. An overflow discards stale backlog and resets the partial cloud. | 512 |
+| imu_packet_queue_capacity | Maximum pending pre-ROS IMU samples; the oldest sample is evicted first. | 50 |
+| lidar_frame_queue_capacity | Maximum assembled clouds awaiting ROS publication; the oldest cloud is overwritten first. | 2 |
+| ptp_max_offset_seconds | Maximum allowed difference between a synchronized sensor timestamp and ROS system time. Packets outside this limit are dropped until PTP recovers. | 1.0 |
+| visualization_publish_frequency | Maximum frequency sent to the visualization-only Draco republisher. | 4.0 |
 
   **Note :**
 
